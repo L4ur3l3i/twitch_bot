@@ -6,6 +6,8 @@ import irc.client
 from dotenv import load_dotenv
 import asyncio
 import html.entities
+from datetime import datetime
+import time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,6 +35,15 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         self.recent_messages_html = deque([''] * 27, maxlen=27)  # Reserve one slot for the blinker line
         self.line_counter = 0  # Counter for initial text message filling
 
+        # Start the countdown timer
+        for i in range(600):
+            with open('countdown.txt', 'w') as file:
+                remaining = 600 - i
+                minutes = str(remaining // 60).zfill(2)  # Convert to string and pad with zeros
+                seconds = str(remaining % 60).zfill(2)   # Convert to string and pad with zeros
+                file.write(minutes + ':' + seconds)
+            time.sleep(1)
+
     def on_welcome(self, connection, event):
         connection.join(self.channel)
         print(f'Joined {self.channel}')
@@ -40,6 +51,9 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
     def on_pubmsg(self, connection, event):
         message = event.arguments[0]
         user = event.source.nick
+
+        # Respond to specific commands
+        self._process_command(message)
         
         # Format messages for text and HTML
         formatted_text_message = f"{self.channel_name}@twitch:~/{user}$ {message}"
@@ -54,6 +68,17 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
 
         # Write the latest messages as an HTML file
         self._write_html_file()
+
+    def _process_command(self, message):
+        """Handles command messages for the bot."""
+        if message.lower() == 'ping':
+            self.connection.privmsg(self.channel, 'pong')
+        elif message.lower() == 'hello':
+            self.connection.privmsg(self.channel, f'Hello, {self.username}!')
+        elif message.lower() == 'goodbye':
+            self.connection.privmsg(self.channel, f'Goodbye, {self.username}!')
+        elif message.lower() == 'kill me sarah':
+            self.die()
 
     def _process_text_message(self, message):
         """Handles text message formatting and storage for .txt output."""
@@ -95,7 +120,7 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         prefix_html = f"""
             <span class="prefix">{self.username}@twitch</span>:<span class="username">~/{user}</span>$ 
         """
-        prefix_length = len(self._strip_html_tags(prefix_html))
+        prefix_length = len(self._strip_html_tags(prefix_html).strip())
         available_length_first_line = 60 - prefix_length
 
         # First line: account for prefix length
