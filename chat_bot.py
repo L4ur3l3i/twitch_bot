@@ -82,7 +82,9 @@ class ChatBot(irc.bot.SingleServerIRCBot):
             scene_name = message.split(' ')[1]
             self.obs.setScene(scene_name)
         elif message.lower() == '!petcam':
-            self.obs.switch_scene_in_background('Pets', 5)
+            self.obs.switch_scene_in_background('Start_pets', 8)
+        elif message.lower() == '!chat':
+            self.obs.switch_scene_in_background('Start_chat', 8)
         elif message.lower() == '!allscenes':
             all_scenes = self.obs.getAllScenes()
             scene_names = [scene['sceneName'] for scene in all_scenes]
