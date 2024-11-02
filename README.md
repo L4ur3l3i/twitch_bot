@@ -7,7 +7,7 @@ A simple Twitch bot that can be used to interact with chat. It is intended to be
 1. Clone the repository
 2. Install the required packages with `pip install -r requirements.txt`
 3. Create a `.env` file in the root directory from the `.env.example` file and fill in the required information
-4. Run the bot with `python3 twitch_bot.py`
+4. Run the bot with `python3 main.py`
 
 ## Features
 
@@ -27,3 +27,5 @@ The messages are displayed in the following format:
 ```
 
 For html format, the last line displays an empty "command" line with a blinking cursor.
+
+### Commands

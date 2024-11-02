@@ -1,18 +1,17 @@
 import os
-import re
-from collections import deque
 import irc.bot
 import irc.client
+from collections import deque
 from dotenv import load_dotenv
-import asyncio
+import re
 import html.entities
-from datetime import datetime
-import time
+from obs_bot import ObsBot
+import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
 
-class TwitchBot(irc.bot.SingleServerIRCBot):
+class ChatBot(irc.bot.SingleServerIRCBot):
     def __init__(self):
         # Load credentials from environment variables
         username = os.getenv("TWITCH_BOT_USERNAME")
@@ -22,27 +21,21 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         server = 'irc.chat.twitch.tv'
         port = 6667
         super().__init__([(server, port, token)], username, username)
+
+        # OBS setup
+        self.obs = ObsBot()
         
         # IRC and channel setup
         self.channel = '#' + channel
-        self.channel_name = channel
         self.username = channel
         
         # Files and message buffers
-        self.text_message_file = "latest_chat.txt"
-        self.html_message_file = "latest_chat.html"
+        self.channel_name = channel
+        self.text_message_file = "output/latest_chat.txt"
+        self.html_message_file = "output/latest_chat.html"
         self.recent_messages_text = [' ' * 90] * 28
         self.recent_messages_html = deque([''] * 27, maxlen=27)  # Reserve one slot for the blinker line
         self.line_counter = 0  # Counter for initial text message filling
-
-        # Start the countdown timer
-        for i in range(600):
-            with open('countdown.txt', 'w') as file:
-                remaining = 600 - i
-                minutes = str(remaining // 60).zfill(2)  # Convert to string and pad with zeros
-                seconds = str(remaining % 60).zfill(2)   # Convert to string and pad with zeros
-                file.write(minutes + ':' + seconds)
-            time.sleep(1)
 
     def on_welcome(self, connection, event):
         connection.join(self.channel)
@@ -69,6 +62,9 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         # Write the latest messages as an HTML file
         self._write_html_file()
 
+    def start_bot(self):
+        self.start()
+
     def _process_command(self, message):
         """Handles command messages for the bot."""
         if message.lower() == 'ping':
@@ -79,6 +75,18 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             self.connection.privmsg(self.channel, f'Goodbye, {self.username}!')
         elif message.lower() == 'kill me sarah':
             self.die()
+        elif message.lower() == '!scene':
+            current_scene = self.obs.getCurrentScene()
+            self.connection.privmsg(self.channel, f'Current scene: {current_scene}')
+        elif message.lower().startswith('!setscene'):
+            scene_name = message.split(' ')[1]
+            self.obs.setScene(scene_name)
+        elif message.lower() == '!petcam':
+            self.obs.switch_scene_in_background('Pets', 5)
+        elif message.lower() == '!allscenes':
+            all_scenes = self.obs.getAllScenes()
+            scene_names = [scene['sceneName'] for scene in all_scenes]
+            self.connection.privmsg(self.channel, f'All scenes: {", ".join(scene_names)}')
 
     def _process_text_message(self, message):
         """Handles text message formatting and storage for .txt output."""
@@ -115,13 +123,13 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             self._add_html_message(part)
 
     def _split_html_message(self, plain_text, user):
-        """Split the message text into parts of max 60 characters, adding prefix only to the first part."""
+        """Split the message text into parts of max 50 characters, adding prefix only to the first part."""
         split_messages = []
         prefix_html = f"""
             <span class="prefix">{self.username}@twitch</span>:<span class="username">~/{user}</span>$ 
         """
         prefix_length = len(self._strip_html_tags(prefix_html).strip())
-        available_length_first_line = 60 - prefix_length
+        available_length_first_line = 50 - prefix_length
 
         # First line: account for prefix length
         if len(plain_text) <= available_length_first_line:
@@ -145,8 +153,8 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         split_messages.append(f"{prefix_html}<span class=\"text\">{self.convert_to_html_entities(first_part)}</span>")
 
         # Handle the remaining parts without the prefix
-        while len(plain_text) > 60:
-            part = plain_text[:60]
+        while len(plain_text) > 50:
+            part = plain_text[:50]
             last_space = part.rfind(' ')
             
             if last_space != -1:
@@ -154,8 +162,8 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
                 part = plain_text[:last_space]
                 plain_text = plain_text[last_space + 1:]
             else:
-                # If no space, split strictly at 60 characters
-                plain_text = plain_text[60:]
+                # If no space, split strictly at 50 characters
+                plain_text = plain_text[50:]
 
             # Add each subsequent part wrapped in text span
             split_messages.append(f"""
@@ -203,9 +211,9 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         <title>{self.username} Twitch Chat</title>
         <style>
             body { font-family: 'Fira Code', monospace; color: white; background-color: black; }
-            .message { font-size: 14px; margin: 2px 0; }
+            .message { font-size: 17px; margin: 2px 0; }
             .prefix { color: #c83a5b; }
-            .username { color: #8ed260; }
+            .username { color: #8ed250; }
             .text { color: #FFFFFF; }
             .blinker { font-weight: bold; color: #FFFFFF; animation: blink 1s step-start infinite; }
             @keyframes blink { 50% { opacity: 0; } }
@@ -239,6 +247,7 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         with open(self.html_message_file, "w", encoding="utf-8") as file:
             file.write(html_content)
 
-# Instantiate and start the bot
-bot = TwitchBot()
-bot.start()
+# Function to run the bot
+def run_chat_bot():
+    bot = ChatBot()
+    bot.start_bot()

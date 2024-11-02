@@ -1,6 +1,9 @@
 .env
-/old/
+
+/__pycache__/
 
 latest_chat.txt
 latest_chat.html
 countdown.txt
+
+/old/
