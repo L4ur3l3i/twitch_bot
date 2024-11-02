@@ -15,8 +15,8 @@ load_dotenv()
 class TwitchBot(irc.bot.SingleServerIRCBot):
     def __init__(self):
         # Load credentials from environment variables
-        username = os.getenv("TWITCH_USERNAME")
-        token = os.getenv("TWITCH_TOKEN")
+        username = os.getenv("TWITCH_BOT_USERNAME")
+        token = os.getenv("TWITCH_BOT_TOKEN")
         channel = os.getenv("TWITCH_CHANNEL")
         
         server = 'irc.chat.twitch.tv'
